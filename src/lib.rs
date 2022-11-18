@@ -68,7 +68,7 @@ impl fmt::Display for TgChat {
 
 #[derive(Deserialize)]
 pub struct TgUpdate{
-    update_id: u64,
+    pub update_id: u64,
     pub message: Option<TgMessage>//,
 }
 
@@ -88,10 +88,11 @@ pub fn get_me(token: &str) -> Result<TgResponse<TgGetMeResult>,ureq::Error> {
 }
 
 
-pub fn get_updates(token: &str) -> Result<TgResponse<Vec<TgUpdate>>,ureq::Error> {
+pub fn get_updates(token: &str, update_id: &u64) -> Result<TgResponse<Vec<TgUpdate>>,ureq::Error> {
     let requset_string: &str = &(format!("{0}{1}{2}", "https://api.telegram.org/bot", token, "/getUpdates"));
+    let update_id:&str = &format!("{}",update_id);
     let messages = ureq::get(requset_string)
-                                .send_form(&[("offset","0"),("timeout","10")])?
+                                .send_form(&[("offset",update_id),("timeout","10")])?
                                 .into_json()?;
     Ok(messages)
 }
