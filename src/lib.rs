@@ -23,7 +23,7 @@ pub struct TgGetMeResult {
 #[derive(Deserialize)]
 pub struct TgResponse<T> {
     pub ok: bool,
-    pub result: T,
+    pub result: Option<T>,
     pub error_code: Option<u64>,
     pub description: Option<String>,
 }
@@ -48,7 +48,7 @@ pub struct TgUser {
 #[derive(Deserialize)]
 pub struct TgMessage {
     pub message_id: u64,
-    pub from: TgUser,
+    pub from: Option<TgUser>,
 }
 
 /*impl fmt::Display for TgMessage {
@@ -78,7 +78,7 @@ pub struct TgChat {
 #[derive(Deserialize)]
 pub struct TgUpdate {
     pub update_id: u64,
-    pub message: TgMessage, //,
+    pub message: Option<TgMessage>, //,
 }
 
 /*impl fmt::Display for TgUpdate {
