@@ -1,4 +1,3 @@
-//mod lib;
 use std::env;
 
 use rust_echo_bot::*;
@@ -29,7 +28,16 @@ fn main() {
                         let msg = i.message.unwrap();
                         let m_id = msg.message_id;
                         let c_id = msg.from.unwrap().id;
-                        send_echo(token, m_id, c_id);
+                        let message_type = to_message_type(msg.text.unwrap());
+
+                        match message_type {
+                            MessageType::Help => {
+                                send_help(token, c_id, "some help message");
+                            }
+                            _ => {
+                                send_echo(token, m_id, c_id);
+                            }
+                        }
                         update_id = i.update_id + 1;
                     }
                 }

@@ -1,5 +1,4 @@
 use serde::{de::DeserializeOwned, Deserialize};
-//use std::fmt;
 use ureq;
 
 #[derive(Deserialize)]
@@ -49,6 +48,7 @@ pub struct TgUser {
 pub struct TgMessage {
     pub message_id: u64,
     pub from: Option<TgUser>,
+    pub text: Option<String>,
 }
 
 /*impl fmt::Display for TgMessage {
@@ -152,5 +152,36 @@ pub fn send_echo(token: &str, message_id: u64, chat_id: u64) -> () {
         println!("message send")
     } else {
         println!("message not send")
+    }
+}
+
+pub enum MessageType {
+    Help,
+    Repeat,
+    Simple,
+}
+
+pub fn to_message_type(text: String) -> MessageType {
+    if text == String::from("/help") {
+        MessageType::Help
+    } else if text == String::from("/repeat") {
+        MessageType::Repeat
+    } else {
+        MessageType::Simple
+    }
+}
+
+pub fn send_help(token: &str, chat_id: u64, text: &str) -> () {
+    let requset_string: &str = &(format!(
+        "{0}{1}{2}",
+        "https://api.telegram.org/bot", token, "/sendMessage"
+    ));
+    let chat_id_str: &str = &(format!("{}", chat_id));
+    let send_help_message =
+        ureq::get(requset_string).send_form(&[("chat_id", chat_id_str), ("text", text)]);
+    if send_help_message.is_ok() {
+        println!("help message send")
+    } else {
+        println!("help message not send")
     }
 }
