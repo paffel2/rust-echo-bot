@@ -1,16 +1,16 @@
-use serde::Deserialize;
-use std::fmt;
+use serde::{de::DeserializeOwned, Deserialize};
+//use std::fmt;
 use ureq;
 
 #[derive(Deserialize)]
 pub struct TgGetMeResult {
-    id: u64,
-    is_bot: bool,
-    first_name: String,
-    username: String,
+    pub id: u64,
+    pub is_bot: bool,
+    pub first_name: String,
+    pub username: String,
 }
 
-impl fmt::Display for TgGetMeResult {
+/*impl fmt::Display for TgGetMeResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -18,30 +18,32 @@ impl fmt::Display for TgGetMeResult {
             self.id, self.is_bot, self.first_name, self.username
         )
     }
-}
+}*/
 
 #[derive(Deserialize)]
 pub struct TgResponse<T> {
-    ok: bool,
-    pub result: T,
+    pub ok: bool,
+    pub result: Option<T>,
+    pub error_code: Option<u64>,
+    pub description: Option<String>,
 }
 
-impl<T: fmt::Display> fmt::Display for TgResponse<T> {
+/*impl<T: fmt::Display> fmt::Display for TgResponse<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ok: {0},\nresult: {1}", self.ok, self.result)
     }
-}
+}*/
 
 #[derive(Deserialize)]
 pub struct TgUser {
     pub id: u64,
 }
 
-impl fmt::Display for TgUser {
+/*impl fmt::Display for TgUser {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "user_id: {0}", self.id)
     }
-}
+}*/
 
 #[derive(Deserialize)]
 pub struct TgMessage {
@@ -49,7 +51,7 @@ pub struct TgMessage {
     pub from: Option<TgUser>,
 }
 
-impl fmt::Display for TgMessage {
+/*impl fmt::Display for TgMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.from {
             Some(user) => write!(
@@ -60,38 +62,66 @@ impl fmt::Display for TgMessage {
             _ => write!(f, "message_id: {0};", self.message_id),
         }
     }
-}
+}*/
 
 #[derive(Deserialize)]
 pub struct TgChat {
     pub id: u64,
 }
 
-impl fmt::Display for TgChat {
+/*impl fmt::Display for TgChat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "chat_id: {0}", self.id)
     }
 }
-
+*/
 #[derive(Deserialize)]
 pub struct TgUpdate {
     pub update_id: u64,
     pub message: Option<TgMessage>, //,
 }
 
-impl fmt::Display for TgUpdate {
+/*impl fmt::Display for TgUpdate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.message {
             Some(message) => write!(f, "update_Id: {0}; message: {1};", self.update_id, message),
             _ => write!(f, "update_id: {0};", self.update_id),
         }
     }
-}
-pub fn get_me(token: &str) -> Result<TgResponse<TgGetMeResult>, ureq::Error> {
+}*/
+pub fn get_me(token: &str) -> Result<TgResponse<TgGetMeResult>, String> {
     let requset_string: &str =
         &(format!("{0}{1}{2}", "https://api.telegram.org/bot", token, "/getMe"));
-    let message: TgResponse<TgGetMeResult> = ureq::get(requset_string).call()?.into_json()?;
-    Ok(message)
+    let message = ureq::get(requset_string).call();
+    match message {
+        Ok(response) => match response.into_json() {
+            Ok(someresult) => Ok(someresult),
+            _ => Err(String::from("bad parse json")),
+        },
+        Err(something) => parse_error(something),
+    }
+}
+
+pub fn parse_error<T: DeserializeOwned>(err: ureq::Error) -> Result<TgResponse<T>, String> {
+    let err_response = err.into_response();
+    match err_response {
+        Some(err_res) => {
+            let something: Result<TgResponse<T>, std::io::Error> = err_res.into_json();
+            match something {
+                Ok(some_result) => {
+                    if some_result.ok {
+                        Err(String::from("unexpected response"))
+                    } else {
+                        Err(some_result
+                            .description
+                            .unwrap_or(String::from("unexpected response")))
+                    }
+                }
+                _ => Err(String::from("unexpected response")),
+            }
+        }
+        None => Err(String::from("unexpected response")),
+    }
 }
 
 pub fn get_updates(token: &str, update_id: &u64) -> Result<TgResponse<Vec<TgUpdate>>, ureq::Error> {

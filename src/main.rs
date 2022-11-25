@@ -1,30 +1,48 @@
-mod lib;
+//mod lib;
 use std::env;
+
+use rust_echo_bot::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let token = &args[1];
-    let check = lib::get_me(token);
+    let check = get_me(token);
     let mut update_id: u64 = 0;
-    if check.is_ok() {
-        loop {
-            let update_result = lib::get_updates(token, &update_id);
+    match check {
+        Ok(TgResponse {
+            ok: true,
+            error_code: _,
+            description: _,
+            result:
+                Some(TgGetMeResult {
+                    id: _,
+                    is_bot: true,
+                    first_name: _,
+                    username: _,
+                }),
+        }) => loop {
+            let update_result = get_updates(token, &update_id);
 
             match update_result {
                 Ok(something) => {
-                    for i in something.result {
+                    for i in something.result.unwrap() {
                         let msg = i.message.unwrap();
                         let m_id = msg.message_id;
                         let c_id = msg.from.unwrap().id;
-                        lib::send_echo(token, m_id, c_id);
+                        send_echo(token, m_id, c_id);
                         update_id = i.update_id + 1;
                     }
                 }
 
-                _ => println!("no updates"),
+                _ => println!("bad updates"),
             }
+        },
+
+        Err(err_message) => {
+            println!("{}", err_message)
         }
-    } else {
-        println!("bad token")
+        _ => {
+            println!("something wrong")
+        }
     }
 }
