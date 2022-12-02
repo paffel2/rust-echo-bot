@@ -1,4 +1,7 @@
-use serde::{de::DeserializeOwned, Deserialize};
+use std::str::FromStr;
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::ser::to_string;
 use ureq;
 
 #[derive(Deserialize)]
@@ -75,10 +78,18 @@ pub struct TgChat {
     }
 }
 */
+
+#[derive(Deserialize)]
+pub struct TgCallbackData {
+    pub data: String,
+    pub from: TgUser//,
+}
+
 #[derive(Deserialize)]
 pub struct TgUpdate {
     pub update_id: u64,
-    pub message: Option<TgMessage>, //,
+    pub message: Option<TgMessage>,
+    pub callback_query: Option<TgCallbackData>, //,
 }
 
 /*impl fmt::Display for TgUpdate {
@@ -155,6 +166,8 @@ pub fn send_echo(token: &str, message_id: u64, chat_id: u64) -> () {
     }
 }
 
+
+
 pub enum MessageType {
     Help,
     Repeat,
@@ -183,5 +196,71 @@ pub fn send_help(token: &str, chat_id: u64, text: &str) -> () {
         println!("help message send")
     } else {
         println!("help message not send")
+    }
+}
+
+
+//"{\"inline_keyboard\":[[{\"text\":\"1\",\"callback_data\":\"1\"}],[{\"text\":\"2\",\"callback_data\":\"2\"}],[{\"text\":\"3\",\"callback_data\":\"3\"}],[{\"text\":\"4\",\"callback_data\":\"4\"}],[{\"text\":\"5\",\"callback_data\":\"5\"}]]}"
+#[derive(Deserialize, Serialize)]
+struct Button {
+    text: String,
+    callback_data: String,
+}
+#[derive(Deserialize, Serialize)]
+struct Keyboard {
+    inline_keyboard: Vec<Vec<Button>>,
+}
+
+fn get_keyboard() -> Keyboard {
+    let b1 = String::from_str("1").unwrap();
+    let b2 = String::from_str("2").unwrap();
+    let b3 = String::from_str("3").unwrap();
+    let b4 = String::from_str("4").unwrap();
+    let b5 = String::from_str("5").unwrap();
+
+    let bn1: Vec<Button> = vec![Button {
+        text: b1.clone(),
+        callback_data: b1.clone(),
+    }];
+    let bn2: Vec<Button> = vec![Button {
+        text: b2.clone(),
+        callback_data: b2.clone(),
+    }];
+    let bn3: Vec<Button> = vec![Button {
+        text: b3.clone(),
+        callback_data: b3.clone(),
+    }];
+    let bn4: Vec<Button> = vec![Button {
+        text: b4.clone(),
+        callback_data: b4.clone(),
+    }];
+    let bn5: Vec<Button> = vec![Button {
+        text: b5.clone(),
+        callback_data: b5.clone(),
+    }];
+
+    Keyboard {
+        inline_keyboard: vec![bn1, bn2, bn3, bn4, bn5],
+    }
+}
+
+pub fn send_keyboard(token: &str, chat_id: u64) -> () {
+    let requset_string: &str = &(format!(
+        "{0}{1}{2}",
+        "https://api.telegram.org/bot", token, "/sendMessage"
+    ));
+    let chat_id_str: &str = &(format!("{}", chat_id));
+    let kb = get_keyboard();
+    let kboard = to_string(&kb).unwrap();
+    let send_help_message = ureq::get(requset_string).send_form(&[
+        ("chat_id", chat_id_str),
+        ("text", "choose number"),
+        ("reply_markup", &kboard),
+        ("one_time_keyboard", "true"),
+    ]);
+    if send_help_message.is_ok() {
+        println!("keyboard send")
+    } else {
+        println!("keyboard not send")
     }
 }
