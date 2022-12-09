@@ -1,105 +1,11 @@
 use std::str::FromStr;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 use serde_json::ser::to_string;
+mod structures;
+pub use structures::*;
 use ureq;
 
-#[derive(Deserialize)]
-pub struct TgGetMeResult {
-    pub id: u64,
-    pub is_bot: bool,
-    pub first_name: String,
-    pub username: String,
-}
-
-/*impl fmt::Display for TgGetMeResult {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "id: {0},is_bot: {1}; first_name: {2}; username:{3};\n",
-            self.id, self.is_bot, self.first_name, self.username
-        )
-    }
-}*/
-
-#[derive(Deserialize)]
-pub struct TgResponse<T> {
-    pub ok: bool,
-    pub result: Option<T>,
-    pub error_code: Option<u64>,
-    pub description: Option<String>,
-}
-
-/*impl<T: fmt::Display> fmt::Display for TgResponse<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ok: {0},\nresult: {1}", self.ok, self.result)
-    }
-}*/
-
-#[derive(Deserialize)]
-pub struct TgUser {
-    pub id: u64,
-}
-
-/*impl fmt::Display for TgUser {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "user_id: {0}", self.id)
-    }
-}*/
-
-#[derive(Deserialize)]
-pub struct TgMessage {
-    pub message_id: u64,
-    pub from: Option<TgUser>,
-    pub text: Option<String>,
-}
-
-/*impl fmt::Display for TgMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.from {
-            Some(user) => write!(
-                f,
-                "message_id: {0};message_from: {1}",
-                self.message_id, user
-            ),
-            _ => write!(f, "message_id: {0};", self.message_id),
-        }
-    }
-}*/
-
-#[derive(Deserialize)]
-pub struct TgChat {
-    pub id: u64,
-}
-
-/*impl fmt::Display for TgChat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "chat_id: {0}", self.id)
-    }
-}
-*/
-
-#[derive(Deserialize)]
-pub struct TgCallbackData {
-    pub data: String,
-    pub from: TgUser//,
-}
-
-#[derive(Deserialize)]
-pub struct TgUpdate {
-    pub update_id: u64,
-    pub message: Option<TgMessage>,
-    pub callback_query: Option<TgCallbackData>, //,
-}
-
-/*impl fmt::Display for TgUpdate {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.message {
-            Some(message) => write!(f, "update_Id: {0}; message: {1};", self.update_id, message),
-            _ => write!(f, "update_id: {0};", self.update_id),
-        }
-    }
-}*/
 pub fn get_me(token: &str) -> Result<TgResponse<TgGetMeResult>, String> {
     let requset_string: &str =
         &(format!("{0}{1}{2}", "https://api.telegram.org/bot", token, "/getMe"));
@@ -165,15 +71,6 @@ pub fn send_echo(token: &str, message_id: u64, chat_id: u64) -> () {
         println!("message not send")
     }
 }
-
-
-
-pub enum MessageType {
-    Help,
-    Repeat,
-    Simple,
-}
-
 pub fn to_message_type(text: String) -> MessageType {
     if text == String::from("/help") {
         MessageType::Help
@@ -197,18 +94,6 @@ pub fn send_help(token: &str, chat_id: u64, text: &str) -> () {
     } else {
         println!("help message not send")
     }
-}
-
-
-//"{\"inline_keyboard\":[[{\"text\":\"1\",\"callback_data\":\"1\"}],[{\"text\":\"2\",\"callback_data\":\"2\"}],[{\"text\":\"3\",\"callback_data\":\"3\"}],[{\"text\":\"4\",\"callback_data\":\"4\"}],[{\"text\":\"5\",\"callback_data\":\"5\"}]]}"
-#[derive(Deserialize, Serialize)]
-struct Button {
-    text: String,
-    callback_data: String,
-}
-#[derive(Deserialize, Serialize)]
-struct Keyboard {
-    inline_keyboard: Vec<Vec<Button>>,
 }
 
 fn get_keyboard() -> Keyboard {
@@ -244,7 +129,7 @@ fn get_keyboard() -> Keyboard {
     }
 }
 
-pub fn send_keyboard(token: &str, chat_id: u64) -> () {
+pub fn send_keyboard(token: &str, chat_id: u64) -> u64 {
     let requset_string: &str = &(format!(
         "{0}{1}{2}",
         "https://api.telegram.org/bot", token, "/sendMessage"
@@ -258,9 +143,55 @@ pub fn send_keyboard(token: &str, chat_id: u64) -> () {
         ("reply_markup", &kboard),
         ("one_time_keyboard", "true"),
     ]);
-    if send_help_message.is_ok() {
-        println!("keyboard send")
+    match send_help_message {
+        Ok(resp) => {
+            let returned_message: Result<TgResponse<TgMessage>, std::io::Error> = resp.into_json();
+            match returned_message {
+                Ok(message) => return message.result.unwrap().message_id,
+                _ => {
+                    println!("message not parsed");
+                    0
+                }
+            }
+        }
+        _ => {
+            println!("message not parsed");
+            0
+        }
+    }
+
+    /*    println!("keyboard send")
     } else {
         println!("keyboard not send")
+    }-}*/
+}
+
+pub fn unwrap_repeats(status: Status) -> u8 {
+    match status {
+        Status::CurrentNumber(a) => a,
+        _ => 0,
+    }
+}
+
+pub fn unwrap_status(status: Status) -> u64 {
+    match status {
+        Status::CurrentNumber(_) => 0,
+        Status::WaitNumber(a) => a,
+    }
+}
+
+pub fn delete_message(token: &str, chat_id: u64, msg_id: u64) -> () {
+    let requset_string: &str = &(format!(
+        "{0}{1}{2}",
+        "https://api.telegram.org/bot", token, "/deleteMessage"
+    ));
+    let chat_id_str: &str = &(format!("{}", chat_id));
+    let msg_id_str: &str = &(format!("{}", msg_id));
+    let delete_message = ureq::get(requset_string)
+        .send_form(&[("chat_id", chat_id_str), ("message_id", msg_id_str)]);
+    if delete_message.is_ok() {
+        println!("service message deleted")
+    } else {
+        println!("service message not deleted")
     }
 }
