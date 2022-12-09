@@ -8,7 +8,7 @@ fn main() {
     let token = &args[1];
     let check = get_me(token);
     let mut update_id: u64 = 0;
-    let mut repeats:HashMap<u64,u32> = HashMap::new();
+    let mut repeats: HashMap<u64, Status> = HashMap::new();
     match check {
         Ok(TgResponse {
             ok: true,
@@ -31,8 +31,12 @@ fn main() {
                         match cl_data {
                             Some(cl_data1) => {
                                 let c_id = cl_data1.from.id;
-                                let repeat:u32 = cl_data1.data.parse::<u32>().unwrap();
-                                repeats.insert(c_id,repeat);
+                                let repeat: u8 = cl_data1.data.parse::<u8>().unwrap();
+                                let service_status = repeats.get(&c_id).unwrap();
+                                delete_message(token, c_id, unwrap_status(*service_status));
+
+                                repeats.insert(c_id, Status::CurrentNumber(repeat));
+
                                 send_help(token, c_id, "repeats updated");
                                 println!("repeats updated");
                             }
@@ -40,24 +44,30 @@ fn main() {
                                 let msg = i.message.unwrap();
                                 let m_id = msg.message_id;
                                 let c_id = msg.from.unwrap().id;
-                                let message_type = to_message_type(msg.text.unwrap_or("".to_string()));
-                                let repeats = repeats.get(&c_id).unwrap_or(&1);
+                                let message_type =
+                                    to_message_type(msg.text.unwrap_or("".to_string()));
+                                let cur_repeat =
+                                    repeats.get(&c_id).unwrap_or(&Status::CurrentNumber(1));
 
                                 match message_type {
                                     MessageType::Help => {
                                         send_help(token, c_id, "some help message");
                                     }
                                     MessageType::Repeat => {
-                                        send_keyboard(token, c_id);
+                                        let service_id = send_keyboard(token, c_id);
+                                        repeats.insert(c_id, Status::WaitNumber(service_id));
                                     }
                                     _ => {
-                                        for _num in 0..*repeats {
-                                        send_echo(token, m_id, c_id);}
+                                        // TODO - checks enums of repeats
+                                        for _num in 0..unwrap_repeats(*cur_repeat) {
+                                            send_echo(token, m_id, c_id);
+                                        }
                                     }
                                 }
                             }
                         }
                         update_id = i.update_id + 1;
+                        //println!("{:#?}", repeats);
                     }
                 }
 
